@@ -1,0 +1,10 @@
+development: &common_settings
+  mysql_host: '127.0.0.1'
+  mysql_user: 'user'
+  mysql_password: 'password'
+  mysql_db: 'dialer_development'
+  socket: '/run/mysqld/mysqld.sock'
+production:
+  <<: *common_settings
+test:
+  <<: *common_settings

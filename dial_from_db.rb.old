@@ -1,0 +1,61 @@
+#!/usr/bin/ruby
+# frozen_string_literal: false
+
+require 'fsr'
+require 'json'
+require 'securerandom'
+require 'active_record'
+require 'yaml'
+
+settings = YAML.load_file("#{__dir__}/config.yml")
+run = settings['development']
+pp run
+
+ActiveRecord::Base.logger = ActiveSupport::Logger.new($stdout)
+
+begin
+  ActiveRecord::Base.establish_connection(
+    adapter: 'mysql2',
+    host: run['mysql_host'],
+    username: run['mysql_user'],
+    password: run['mysql_password'],
+    database: run['mysql_db'],
+    socket: run['socket']
+  )
+rescue StandardError => e
+  pp e
+end
+
+FSR.load_all_commands
+$sock = FSR::CommandSocket.new
+
+def call(number)
+  params = { 'gateway' => 'asterisk',
+             'phone' => number,
+#	     'phone' => '712305393',
+             'caller_id_number' => '712065010',
+             'caller_id_name' => 'Dialer',
+             'timeout' => 30 }
+
+  params.each do |k, v|
+    singleton_class.send(:attr_accessor, k)
+    send("#{k}=", v)
+  end
+
+  first = '/home/michael/apps/freeswitch-docker-dialer/sounds/0.wav'
+  second = '/home/michael/apps/freeswitch-docker-dialer/sounds/1.wav'
+
+  $sock.originate(timeout: timeout, caller_id_number: caller_id_number, caller_id_name: caller_id_name,
+                  target: "sofia/gateway/#{gateway}/#{phone}",
+                  endpoint: '9196 XML default').run
+end
+
+class User < ActiveRecord::Base
+  scope :active, -> { where(active: true) }
+end
+
+User.active.each do |user|
+  pp user.phone
+  call user.phone.delete_prefix!('998')
+  sleep 1
+end
